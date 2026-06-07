@@ -22,3 +22,8 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api', routerUsers)
 
 module.exports = app;
+var port = process.env.PORT || 3700;
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
+});

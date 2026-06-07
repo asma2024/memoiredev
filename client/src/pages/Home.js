@@ -11,7 +11,9 @@ function Home() {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [show, setShow] = useState(false);
-
+  const fetchUsers = () => {
+  axios.get("/api/users").then((res) => setUsers(res.data));
+};
   const onChangeHandler = (e) => {
     setForm({
       ...form,
@@ -30,6 +32,7 @@ function Home() {
       /* hide errors after save */
       setErrors({})
       setShow(true)
+      fetchUsers();
       setTimeout(() => {
         setShow(false)
       }, 4000);
@@ -46,6 +49,7 @@ function Home() {
      .then(res=>{
       setMessage(res.data.message)
       setShow(true)
+      fetchUsers();
       setTimeout(() => {
         setShow(false)
       }, 4000);
@@ -53,17 +57,15 @@ function Home() {
     }
    }
   /* find all users */
-  useEffect(async () => {
-    await axios.get("/api/users").then((res) => {
-      setUsers(res.data);
-    });
-  });
+  useEffect(() => {
+    fetchUsers();
+  }, []);
   return (
-    <div className="row p-4">
-      <Alert message={message} show={show}/>
-      <div className="mt-4">
-        <h2>Crud Users</h2>
-      </div>
+      <div className="row p-4">
+        <Alert message={message} show={show}/>
+        <div className="mt-4">
+          <h2>Crud Users</h2>
+        </div>
       <div className="col-12 col-lg-4">
         <form onSubmit={onSubmitHandler}>
           <InputGroup
