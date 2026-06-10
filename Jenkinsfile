@@ -14,10 +14,11 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        sh 'npm install --prefer-offline --no-audit --no-fund'
-      }
-    }
+   stage('Install Dependencies') {
+  steps {
+    sh 'rm -rf node_modules'
+    sh 'npm install --prefer-offline --no-audit --no-fund'
+  }
+}
     }
     }
