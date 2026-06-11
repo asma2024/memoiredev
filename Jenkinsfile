@@ -23,7 +23,13 @@ pipeline {
       }
     }
 
-    stage('Docker Build') {
+    stage('Run Backend Tests') {
+      steps {
+        sh 'npm test'
+      }
+    }
+
+    stage('Build Backend Docker Image') {
       steps {
         script {
           sh "docker build -t ${backendImageName}:${backendImageTag} ."
@@ -31,7 +37,7 @@ pipeline {
       }
     }
 
-    stage('Push Docker Hub') {
+    stage('Push Backend Docker Image') {
       steps {
         script {
           withCredentials([usernamePassword(
@@ -46,20 +52,73 @@ pipeline {
       }
     }
 
-    stage('Cleanup') {
+    stage('Docker Remove Backend Image') {
       steps {
         sh "docker rmi ${backendImageName}:${backendImageTag}"
+      }
+    }
+
+    stage('Build Frontend Docker Image') {
+      steps {
+        dir('client') {
+          script {
+            sh "docker build -t ${frontendImageName}:${frontendImageTag} ."
+          }
+        }
+      }
+    }
+
+    stage('Push Frontend Docker Image') {
+      steps {
+        script {
+          withCredentials([usernamePassword(
+            credentialsId: 'dockerhub',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+          )]) {
+            sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+            sh "docker push ${frontendImageName}:${frontendImageTag}"
+          }
+        }
+      }
+    }
+
+    stage('Docker Remove Frontend Image') {
+      steps {
+        sh "docker rmi ${frontendImageName}:${frontendImageTag}"
+      }
+    }
+
+    stage('Deploying App to Kubernetes') {
+      steps {
+        script {
+          kubernetesDeploy(configs: "mongodeploy.yaml", kubeconfigId: "k8s-id", withLatestTag: true)
+        }
+        script {
+          sh "sed -i 's|__IMAGE_NAME__|${backendImageName}|g; s|__IMAGE_TAG__|${backendImageTag}|g' backenddeploy.yaml"
+          kubernetesDeploy(configs: "backenddeploy.yaml", kubeconfigId: "k8s-id", withLatestTag: true)
+        }
+        dir('client') {
+          script {
+            sh "sed -i 's|__IMAGE_NAME__|${frontendImageName}|g; s|__IMAGE_TAG__|${frontendImageTag}|g' frontdeploy.yaml"
+            kubernetesDeploy(configs: "frontdeploy.yaml", kubeconfigId: "k8s-id", withLatestTag: true)
+          }
+        }
       }
     }
 
   }
 
   post {
-    success {
-      echo "Build réussi !"
-    }
-    failure {
-      echo "Build échoué. Vérifiez les logs."
+    always {
+      script {
+        def pipelineStatus = currentBuild.result
+        def emailBody = pipelineStatus == 'SUCCESS' ? "La pipeline CI/CD a été exécutée avec succès." : "La pipeline CI/CD a été exécutée en échec."
+        emailext subject: "Rapport d'exécution de la pipeline CI/CD",
+                  body: emailBody,
+                  to: "asmahamlia22@gmail.com",
+                  attachLog: true
+      }
     }
   }
 }
