@@ -91,11 +91,12 @@ pipeline {
 
     stage('Deploying App to Kubernetes') {
       steps {
-        withKubeConfig([credentialsId: 'k8s-id']) {
-          sh "kubectl apply -f mongodeploy.yaml"
-          sh "sed -i 's|__IMAGE_NAME__|${backendImageName}|g; s|__IMAGE_TAG__|${backendImageTag}|g' backenddeploy.yaml"
-          sh "kubectl apply -f backenddeploy.yaml"
-          dir('client') {
+        sh "kubectl apply -f mongodeploy.yaml"
+
+        sh "sed -i 's|__IMAGE_NAME__|${backendImageName}|g; s|__IMAGE_TAG__|${backendImageTag}|g' backenddeploy.yaml"
+        sh "kubectl apply -f backenddeploy.yaml"
+
+        dir('client') {
             sh "sed -i 's|__IMAGE_NAME__|${frontendImageName}|g; s|__IMAGE_TAG__|${frontendImageTag}|g' frontdeploy.yaml"
             sh "kubectl apply -f frontdeploy.yaml"
           }
