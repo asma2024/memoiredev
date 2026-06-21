@@ -37,6 +37,14 @@ pipeline {
       }
     }
 
+    stage('Scan Backend Image with Trivy') {
+      steps {
+        script {
+          sh "trivy image --severity HIGH,CRITICAL --exit-code 0 --format table -o trivy-backend-report.txt ${backendImageName}:${backendImageTag}"
+        }
+      }
+    }
+
     stage('Push Backend Docker Image') {
       steps {
         script {
@@ -64,6 +72,14 @@ pipeline {
           script {
             sh "docker build -t ${frontendImageName}:${frontendImageTag} ."
           }
+        }
+      }
+    }
+
+    stage('Scan Frontend Image with Trivy') {
+      steps {
+        script {
+          sh "trivy image --severity HIGH,CRITICAL --exit-code 0 --format table -o trivy-frontend-report.txt ${frontendImageName}:${frontendImageTag}"
         }
       }
     }
@@ -97,16 +113,16 @@ pipeline {
         sh "kubectl apply -f backenddeploy.yaml"
 
         dir('client') {
-            sh "sed -i 's|__IMAGE_NAME__|${frontendImageName}|g; s|__IMAGE_TAG__|${frontendImageTag}|g' frontdeploy.yaml"
-            sh "kubectl apply -f frontdeploy.yaml"
-          }
+          sh "sed -i 's|__IMAGE_NAME__|${frontendImageName}|g; s|__IMAGE_TAG__|${frontendImageTag}|g' frontdeploy.yaml"
+          sh "kubectl apply -f frontdeploy.yaml"
         }
       }
     }
-
+  }
 
   post {
     always {
+      archiveArtifacts artifacts: 'trivy-*.txt', allowEmptyArchive: true
       script {
         def pipelineStatus = currentBuild.result
         def emailBody = pipelineStatus == 'SUCCESS' ? "La pipeline CI/CD a été exécutée avec succès." : "La pipeline CI/CD a été exécutée en échec."
